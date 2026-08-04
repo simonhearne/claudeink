@@ -118,20 +118,69 @@ points at `.venv/bin/python` for this reason.
 
 ### 4. Set Claude credentials
 
-The script reads `~/.claude/.credentials.json` — the same file Claude Code maintains.
-Copy it over from a machine where you're logged in:
+The script reads `~/.claude/.credentials.json` on the Pi, in the same format Claude Code
+writes. Where that credential comes from on your own machine depends on the platform, see
+below.
+
+**Give the Pi its own login. Don't copy the credentials file you use day to day.**
+Anthropic rotates the refresh token on every exchange: each refresh returns a new one and
+kills the old one. If the Pi and your laptop share a token, they take turns invalidating
+each other, and you get logged out of Claude Code every few hours on whichever machine
+refreshed second. Re-copying the file restarts the same loop.
+
+Log in a second time on your usual machine, into a config directory of its own:
 
 ```bash
-scp ~/.claude/.credentials.json pi@claudeink.local:~/.claude/.credentials.json
+CLAUDE_CONFIG_DIR=~/.claude-pi claude auth login
+```
+
+`CLAUDE_CONFIG_DIR` keeps that login in its own token family, so the Pi rotating its token
+never touches the one Claude Code is using. Both logins are the same account and share its
+usage limits, which is the point: the panel reports on the account you actually work under.
+
+Check the two really are separate before you copy anything:
+
+```bash
+claude auth status                                   # your everyday login
+CLAUDE_CONFIG_DIR=~/.claude-pi claude auth status    # the Pi's
+```
+
+Then get that credential onto the Pi. Where it lives depends on your platform.
+
+**Linux**, where it's a file:
+
+```bash
+scp ~/.claude-pi/.credentials.json pi@claudeink.local:~/.claude/.credentials.json
 ssh pi@claudeink.local chmod 600 ~/.claude/.credentials.json
 ```
+
+**macOS**, where Claude Code keeps credentials in the login Keychain and writes no file at
+all. There's one entry per config directory, named for the first 8 hex of the sha256 of the
+config directory's absolute path, so derive the name rather than guessing it:
+
+```bash
+SVC="Claude Code-credentials-$(printf %s "$HOME/.claude-pi" | shasum -a 256 | cut -c1-8)"
+security find-generic-password -s "$SVC" -w \
+  | ssh pi@claudeink.local 'umask 077 && cat > ~/.claude/.credentials.json'
+```
+
+Piping keeps the token off your local disk. The default config directory uses an unsuffixed
+`Claude Code-credentials` entry, so this naming only applies to the extra login.
+
+Note that a `~/.claude/.credentials.json` on a Mac is most likely a leftover from an older
+version rather than anything current. Check its date before you trust it: copying a stale
+one to the Pi is what starts the loop described above.
 
 **Token refresh:** Claude Code isn't running on the Pi, so nobody is refreshing the access
 token for you — it'd expire in hours. `refresh_token()` handles this itself using the
 `refreshToken` field. That endpoint and client id are reverse-engineered from the Claude
 Code client, not documented API, so treat them as the most fragile part of this project.
 If refresh starts failing you'll see it in the journal and the clock gets a `!` prefix to
-show the data is stale; re-copy the credentials file to recover.
+show the data is stale.
+
+A `refresh rejected` line in the journal means the token was refused outright, which
+usually means something else refreshed it first. That is the shared-credentials trap
+above, so fix it with a dedicated login rather than by copying the same file again.
 
 Nothing about `/api/oauth/usage` is a supported interface either. It can change without warning.
 

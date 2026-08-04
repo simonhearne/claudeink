@@ -144,8 +144,21 @@ def refresh_token(creds):
         headers={"Content-Type": "application/json", "User-Agent": USER_AGENT},
         method="POST",
     )
-    with urllib.request.urlopen(req, timeout=20) as resp:
-        payload = json.load(resp)
+    try:
+        with urllib.request.urlopen(req, timeout=20) as resp:
+            payload = json.load(resp)
+    except urllib.error.HTTPError as exc:
+        if exc.code in (400, 401):
+            # The server rotates the refresh token on every exchange, so a flat
+            # rejection nearly always means another client refreshed this one
+            # first. Sharing one credentials file between the Pi and a machine
+            # running Claude Code does exactly that, in both directions.
+            log(
+                "refresh rejected (%d): this token was probably already used by "
+                "another Claude Code client. The Pi needs its own login, see README."
+                % exc.code
+            )
+        raise
 
     creds["accessToken"] = payload["access_token"]
     if payload.get("refresh_token"):
