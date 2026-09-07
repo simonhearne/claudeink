@@ -19,6 +19,11 @@ Env config (all optional):
   PARTIAL_REFRESH    set to 1 for flash-free partial updates (Waveshare V4/V3)
   FULL_REFRESH_MINUTES  minutes between ghost-clearing full refreshes when
                      partial refresh is on, default 60
+  WEB_UI             set to 1 to serve the status web ui
+  WEB_PORT           port for the web ui, default 8080
+  HISTORY_FILE       usage history for the web ui chart, default history.jsonl
+                     beside this script
+  HISTORY_DAYS       history retention in days, default 30
 
 Flags:
   --demo   run with synthetic data, no network, no credentials
@@ -48,6 +53,8 @@ FLIP = os.environ.get("FLIP", "0") == "1"
 PLAN_LABEL = os.environ.get("PLAN_LABEL", "")
 PARTIAL_REFRESH = os.environ.get("PARTIAL_REFRESH", "0") == "1"
 FULL_REFRESH_MINUTES = max(1, int(os.environ.get("FULL_REFRESH_MINUTES", "60")))
+WEB_UI = os.environ.get("WEB_UI", "0") == "1"
+WEB_PORT = int(os.environ.get("WEB_PORT", "8080"))
 
 QUIET_START = os.environ.get("QUIET_START")
 QUIET_END = os.environ.get("QUIET_END")
@@ -753,13 +760,15 @@ def main():
                 rows, stale = last_rows, True
 
         quiet = in_quiet_hours()
-        if quiet and not once:
+        if quiet and not once and not forced:
             panel.rest()
 
         if rows is not None:
             last_rows = rows
-            if once or not quiet:
-                img = render(panel.size, rows, panel.colours, stale=stale)
+            img = render(panel.size, rows, panel.colours, stale=stale)
+            if web_state:
+                web_state.update(png_bytes(img), last_limits or [], stale, payload)
+            if once or forced or not quiet:
                 panel.show(img)
                 if png:
                     log("wrote " + write_png(img))

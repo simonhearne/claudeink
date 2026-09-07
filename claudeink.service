@@ -19,6 +19,9 @@ Environment=QUIET_END=7
 ## with a flashing ghost-clearing full refresh once an hour
 #Environment=PARTIAL_REFRESH=1
 #Environment=FULL_REFRESH_MINUTES=60
+## Uncomment to serve the status web ui
+#Environment=WEB_UI=1
+#Environment=WEB_PORT=8080
 Restart=always
 RestartSec=30
 

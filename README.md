@@ -238,6 +238,10 @@ All via environment (set them in the unit file):
 | `CREDENTIALS` | `~/.claude/.credentials.json` | |
 | `PARTIAL_REFRESH` | `0` | set `1` for flash-free partial updates (Waveshare V4/V3 only; ignored elsewhere) |
 | `FULL_REFRESH_MINUTES` | `60` | with partial refresh on, minutes between flashing full refreshes that clear ghosting |
+| `WEB_UI` | `0` | set `1` to serve the status web ui |
+| `WEB_PORT` | `8080` | web ui port, used with `WEB_UI=1` |
+| `HISTORY_FILE` | `history.jsonl` beside `run.py` | where usage history is recorded for the web ui chart |
+| `HISTORY_DAYS` | `30` | history retention |
 
 Times are rendered in the Pi's local timezone — `sudo timedatectl set-timezone Europe/London`
 if you haven't already.
